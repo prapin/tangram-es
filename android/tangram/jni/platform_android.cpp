@@ -23,6 +23,10 @@
 #include <sys/resource.h>
 #include <fstream>
 #include <algorithm>
+#include <cassert>
+#include <mutex>
+
+#include <zlib.h>
 
 /* Followed the following document for JavaVM tips when used with native threads
  * http://android.wooyd.org/JNIExample/#NWD1sCYeT-I
@@ -268,16 +272,88 @@ void cancelUrlRequest(const std::string& _url) {
     jniRenderThreadEnv->CallVoidMethod(tangramInstance, cancelUrlRequestMID, jUrl);
 }
 
+#define CHUNK 16384
+
+std::mutex mutexDecode;
+std::vector<char> bufferIn;
+std::vector<char> bufferOut;
+
+int inflate(const std::vector<char>& source, std::vector<char>& dst) {
+
+    logMsg(">>>> %d >>>\n", source.size());
+
+    int ret;
+    z_stream strm;
+    unsigned char out[CHUNK];
+
+    strm.zalloc = Z_NULL;
+    strm.zfree = Z_NULL;
+    strm.opaque = Z_NULL;
+    strm.avail_in = 0;
+    strm.next_in = Z_NULL;
+
+    ret = inflateInit2(&strm, 16+MAX_WBITS);
+
+    if (ret != Z_OK)
+        return ret;
+
+    strm.avail_in = source.size();
+    strm.next_in = (Bytef*)source.data();
+
+    do {
+        strm.avail_out = CHUNK;
+        strm.next_out = out;
+
+        ret = inflate(&strm, Z_NO_FLUSH);
+
+         /* state not clobbered */
+        assert(ret != Z_STREAM_ERROR);
+
+        switch (ret) {
+        case Z_NEED_DICT:
+            ret = Z_DATA_ERROR;     /* and fall through */
+        case Z_DATA_ERROR:
+        case Z_MEM_ERROR:
+            inflateEnd(&strm);
+            return ret;
+        }
+
+        size_t have = CHUNK - strm.avail_out;
+        dst.insert(dst.end(), out, out+have);
+        //} while (strm.avail_out == 0);
+        logMsg("chunk %d\n", have);
+    } while (ret == Z_OK);
+
+    inflateEnd(&strm);
+
+    return ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
+}
+
 void onUrlSuccess(JNIEnv* _jniEnv, jbyteArray _jBytes, jlong _jCallbackPtr) {
 
-    size_t length = _jniEnv->GetArrayLength(_jBytes);
-    std::vector<char> content;
-    content.resize(length);
-
-    _jniEnv->GetByteArrayRegion(_jBytes, 0, length, reinterpret_cast<jbyte*>(content.data()));
-
     UrlCallback* callback = reinterpret_cast<UrlCallback*>(_jCallbackPtr);
+    size_t length = _jniEnv->GetArrayLength(_jBytes);
+    std::vector<char> dst;
+
+    std::vector<char> content;
+    {
+        std::lock_guard<std::mutex> lock(mutexDecode);
+        z_stream zs;
+        memset(&zs, 0, sizeof(zs));
+
+        bufferIn.resize(length);
+        bufferOut.clear();
+        _jniEnv->GetByteArrayRegion(_jBytes, 0, length, reinterpret_cast<jbyte*>(bufferIn.data()));
+
+        int ret = inflate(bufferIn, bufferOut);
+
+        logMsg("<<< %d <<<< => %d, ok:%d", bufferIn.size(), bufferOut.size(), ret);
+
+        content.insert(content.begin(), bufferOut.begin(), bufferOut.end());
+    }
+
     (*callback)(std::move(content));
+
     delete callback;
 }
 
