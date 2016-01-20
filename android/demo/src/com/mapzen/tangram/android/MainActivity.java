@@ -29,7 +29,8 @@ public class MainActivity extends Activity {
 
     boolean tileInfo;
 
-    String tileApiKey = "?api_key=vector-tiles-tyHL4AY";
+    //String tileApiKey = "?api_key=vector-tiles-tyHL4AY";
+    String tileApiKey = "?api_key=vector-tiles-VMSYhD4";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -41,7 +42,7 @@ public class MainActivity extends Activity {
 
         mapView = (MapView)findViewById(R.id.map);
         mapController = new MapController(this, mapView);
-        mapController.setMapZoom(16);
+        mapController.setMapZoom(12);
         mapController.setMapPosition(-74.00976419448854, 40.70532700869127);
 
         final MapData touchMarkers = new MapData("touch");

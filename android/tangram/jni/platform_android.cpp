@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <cassert>
 #include <mutex>
+#include <chrono>
 
 #include <zlib.h>
 
@@ -280,17 +281,17 @@ std::vector<char> bufferOut;
 
 int inflate(const std::vector<char>& source, std::vector<char>& dst) {
 
-    logMsg(">>>> %d >>>\n", source.size());
-
     int ret;
-    z_stream strm;
     unsigned char out[CHUNK];
 
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    strm.avail_in = 0;
-    strm.next_in = Z_NULL;
+    z_stream strm;
+    memset(&strm, 0, sizeof(z_stream));
+
+    // strm.zalloc = Z_NULL;
+    // strm.zfree = Z_NULL;
+    // strm.opaque = Z_NULL;
+    // strm.avail_in = 0;
+    // strm.next_in = Z_NULL;
 
     ret = inflateInit2(&strm, 16+MAX_WBITS);
 
@@ -320,8 +321,7 @@ int inflate(const std::vector<char>& source, std::vector<char>& dst) {
 
         size_t have = CHUNK - strm.avail_out;
         dst.insert(dst.end(), out, out+have);
-        //} while (strm.avail_out == 0);
-        logMsg("chunk %d\n", have);
+
     } while (ret == Z_OK);
 
     inflateEnd(&strm);
@@ -330,16 +330,14 @@ int inflate(const std::vector<char>& source, std::vector<char>& dst) {
 }
 
 void onUrlSuccess(JNIEnv* _jniEnv, jbyteArray _jBytes, jlong _jCallbackPtr) {
+    const clock_t begin = clock();
 
     UrlCallback* callback = reinterpret_cast<UrlCallback*>(_jCallbackPtr);
     size_t length = _jniEnv->GetArrayLength(_jBytes);
-    std::vector<char> dst;
 
     std::vector<char> content;
     {
         std::lock_guard<std::mutex> lock(mutexDecode);
-        z_stream zs;
-        memset(&zs, 0, sizeof(zs));
 
         bufferIn.resize(length);
         bufferOut.clear();
@@ -347,12 +345,16 @@ void onUrlSuccess(JNIEnv* _jniEnv, jbyteArray _jBytes, jlong _jCallbackPtr) {
 
         int ret = inflate(bufferIn, bufferOut);
 
-        logMsg("<<< %d <<<< => %d, ok:%d", bufferIn.size(), bufferOut.size(), ret);
-
         content.insert(content.begin(), bufferOut.begin(), bufferOut.end());
+
+        logMsg("<<< %d <<<< => %d, ok:%d", bufferIn.size(), bufferOut.size(), ret);
     }
 
     (*callback)(std::move(content));
+
+    double loadTime = (double(clock() - begin) / CLOCKS_PER_SEC) * 1000;
+    //double loadTime = (double(clock()) - double(begin)) * 1000.0;
+    logMsg("unzipped %f\n", loadTime);
 
     delete callback;
 }

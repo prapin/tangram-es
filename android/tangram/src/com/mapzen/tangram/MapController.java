@@ -528,6 +528,8 @@ public class MapController implements Renderer {
                 BufferedSource source = response.body().source();
                 byte[] bytes = source.readByteArray();
                 onUrlSuccess(bytes, callbackPtr);
+
+                response.body().close();
             }
         });
         return true;
