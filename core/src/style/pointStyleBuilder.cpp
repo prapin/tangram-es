@@ -214,7 +214,9 @@ void PointStyleBuilder::addPolygon(const Polygon& _polygon, const Properties& _p
 void PointStyleBuilder::addFeature(const Feature& _feat, const DrawRule& _rule) {
     StyleBuilder::addFeature(_feat, _rule);
 
-    if (_rule.contains(StyleParamKey::point_text)) {
+    bool textVisible = true;
+    _rule.get(StyleParamKey::text_visible, textVisible);
+    if ( textVisible && _rule.contains(StyleParamKey::point_text) ) {
         if (m_labels.size() == 0) { return; }
 
         auto& textStyleBuilder = static_cast<TextStyleBuilder&>(*m_textStyleBuilder);
