@@ -215,8 +215,6 @@ private:
 
 };
 
-void runOnMainLoop(std::function<void()> _task);
-
 // Run this task asynchronously to Tangram's main update loop.
 void runAsyncTask(std::function<void()> _task);
 
