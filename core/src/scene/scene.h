@@ -88,6 +88,9 @@ public:
     const Style* findStyle(const std::string& _name) const;
     const Light* findLight(const std::string& _name) const;
 
+    void updateTime(float _dt) { m_time += _dt; }
+    float time() const { return m_time; }
+
     int addIdForName(const std::string& _name);
     int getIdForName(const std::string& _name) const;
 
@@ -139,6 +142,8 @@ private:
     std::shared_ptr<FontContext> m_fontContext;
 
     animate m_animated = none;
+
+    float m_time = 0.0;
 };
 
 }
