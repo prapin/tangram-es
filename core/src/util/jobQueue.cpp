@@ -10,7 +10,7 @@ void JobQueue::makeCurrentThreadTarget() {
     m_threadId = std::this_thread::get_id();
 }
 
-void JobQueue::add(Job job) {
+void JobQueue::add(Job job) const {
     std::lock_guard<std::mutex> lock(jobMutex);
     jobsForThreads[m_threadId].push_back(job);
 }
