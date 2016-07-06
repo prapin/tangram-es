@@ -9,6 +9,7 @@
 #include "util/geom.h"
 #include "util/mapProjection.h"
 #include "view/view.h"
+#include "log.h"
 
 #include <cmath>
 #include <locale>
