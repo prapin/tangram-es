@@ -102,7 +102,7 @@ extern "C" {
         setupJniEnv(jniEnv, tangramInstance, assetManager);
         const char* cStylePath = jniEnv->GetStringUTFChars(stylePath, NULL);
         assert(mapPtr > 0);
-        auto map = new Tangram::Map(cStylePath);
+        auto map = new Tangram::Map();
         jniEnv->ReleaseStringUTFChars(stylePath, cStylePath);
         return reinterpret_cast<jlong>(map);
     }
